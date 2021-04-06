@@ -18,6 +18,8 @@ namespace boost { namespace asio {
    class thread_pool;
 }}
 
+namespace eosio { namespace vm { class wasm_allocator; }}
+
 namespace eosio { namespace chain {
 
    class authorization_manager;
@@ -95,6 +97,8 @@ namespace eosio { namespace chain {
             flat_set<account_name>   resource_greylist;
             flat_set<account_name>   trusted_producers;
             uint32_t                 greylist_limit         = chain::config::maximum_elastic_resource_multiplier;
+
+            flat_set<account_name>   profile_accounts;
          };
 
          enum class block_status {
@@ -283,6 +287,8 @@ namespace eosio { namespace chain {
 
          bool contracts_console()const;
 
+         bool is_profiling(account_name name) const;
+
          chain_id_type get_chain_id()const;
 
          db_read_mode get_read_mode()const;
@@ -348,6 +354,9 @@ namespace eosio { namespace chain {
       static chain_id_type extract_chain_id(snapshot_reader& snapshot);
 
       static fc::optional<chain_id_type> extract_chain_id_from_db( const path& state_dir );
+
+      void replace_producer_keys( const public_key_type& key );
+      void replace_account_keys( name account, name permission, const public_key_type& key );
 
       private:
          friend class apply_context;

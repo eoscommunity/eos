@@ -34,6 +34,10 @@
 
 #include <new>
 
+#if defined(EOSIO_EOS_VM_RUNTIME_ENABLED) || defined(EOSIO_EOS_VM_JIT_RUNTIME_ENABLED)
+#include <eosio/vm/allocator.hpp>
+#endif
+
 namespace eosio { namespace chain {
 
 using resource_limits::resource_limits_manager;
@@ -307,7 +311,7 @@ struct controller_impl {
         cfg.reversible_cache_size, false, cfg.db_map_mode, cfg.db_hugepage_paths ),
     blog( cfg.blocks_dir ),
     fork_db( cfg.state_dir ),
-    wasmif( cfg.wasm_runtime, cfg.eosvmoc_tierup, db, cfg.state_dir, cfg.eosvmoc_config ),
+    wasmif( cfg.wasm_runtime, cfg.eosvmoc_tierup, db, cfg.state_dir, cfg.eosvmoc_config, !cfg.profile_accounts.empty() ),
     resource_limits( db ),
     authorization( s, db ),
     protocol_features( std::move(pfs) ),
@@ -3077,6 +3081,10 @@ bool controller::contracts_console()const {
    return my->conf.contracts_console;
 }
 
+bool controller::is_profiling(account_name account) const {
+   return my->conf.profile_accounts.find(account) != my->conf.profile_accounts.end();
+}
+
 chain_id_type controller::get_chain_id()const {
    return my->chain_id;
 }
@@ -3317,6 +3325,39 @@ fc::optional<chain_id_type> controller::extract_chain_id_from_db( const path& st
    }
 
    return {};
+}
+
+void controller::replace_producer_keys( const public_key_type& key ) {
+   ilog("Replace producer keys with ${k}", ("k", key));
+   mutable_db().modify( db().get<global_property_object>(), [&]( auto& gp ) {
+      gp.proposed_schedule_block_num = {};
+      gp.proposed_schedule.version = 0;
+      gp.proposed_schedule.producers.clear();
+   });
+   auto version = my->head->pending_schedule.schedule.version;
+   my->head->pending_schedule = {};
+   my->head->pending_schedule.schedule.version = version;
+   for (auto& prod: my->head->active_schedule.producers ) {
+      ilog("${n}", ("n", prod.producer_name));
+      prod.authority.visit([&](auto &auth) {
+         auth.threshold = 1;
+         auth.keys = {key_weight{key, 1}};
+      });
+   }
+}
+
+void controller::replace_account_keys( name account, name permission, const public_key_type& key ) {
+   auto& rlm = get_mutable_resource_limits_manager();
+   auto* perm = db().find<permission_object, by_owner>(boost::make_tuple(account, permission));
+   if (!perm)
+      return;
+   int64_t old_size = (int64_t)(chain::config::billable_size_v<permission_object> + perm->auth.get_billable_size());
+   mutable_db().modify(*perm, [&](auto& p) {
+      p.auth = authority(key);
+   });
+   int64_t new_size = (int64_t)(chain::config::billable_size_v<permission_object> + perm->auth.get_billable_size());
+   rlm.add_pending_ram_usage(account, new_size - old_size);
+   rlm.verify_account_ram_usage(account);
 }
 
 /// Protocol feature activation handlers:

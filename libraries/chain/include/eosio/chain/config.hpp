@@ -1,6 +1,7 @@
 #pragma once
 #include <eosio/chain/wasm_interface.hpp>
 #include <fc/time.hpp>
+#include <fc/utility.hpp>
 
 #pragma GCC diagnostic ignored "-Wunused-variable"
 
@@ -84,6 +85,8 @@ const static uint16_t   default_controller_thread_pool_size          = 2;
 const static uint32_t   default_max_variable_signature_length        = 16384u;
 const static uint32_t   default_max_nonprivileged_inline_action_size = 4 * 1024; // 4 KB
 
+static_assert(MAX_SIZE_OF_BYTE_ARRAYS == 20*1024*1024, "Changing MAX_SIZE_OF_BYTE_ARRAYS breaks consensus. Make sure this is expected");
+
 const static uint32_t   min_net_usage_delta_between_base_and_max_for_trx  = 10*1024;
 // Should be large enough to allow recovery from badly set blockchain parameters without a hard fork
 // (unless net_usage_leeway is set to 0 and so are the net limits of all accounts that can help with resetting blockchain parameters).
@@ -97,7 +100,7 @@ const static uint32_t   setcode_ram_bytes_multiplier       = 10;     ///< multip
 
 const static uint32_t   hashing_checktime_block_size       = 10*1024;  /// call checktime from hashing intrinsic once per this number of bytes
 
-const static eosio::chain::wasm_interface::vm_type default_wasm_runtime = eosio::chain::wasm_interface::vm_type::wabt;
+const static eosio::chain::wasm_interface::vm_type default_wasm_runtime = eosio::chain::wasm_interface::vm_type::eos_vm_jit;
 const static uint32_t   default_abi_serializer_max_time_us = 15*1000; ///< default deadline for abi serialization methods
 
 /**

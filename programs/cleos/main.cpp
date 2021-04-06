@@ -106,12 +106,6 @@ Options:
 
 #pragma pop_macro("N")
 
-#include <Inline/BasicTypes.h>
-#include <IR/Module.h>
-#include <IR/Validate.h>
-#include <WASM/WASM.h>
-#include <Runtime/Runtime.h>
-
 #include <fc/io/fstream.hpp>
 
 #define CLI11_HAS_FILESYSTEM 0

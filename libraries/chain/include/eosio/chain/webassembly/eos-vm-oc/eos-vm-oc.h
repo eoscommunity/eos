@@ -17,7 +17,7 @@ struct eos_vm_oc_control_block {
    uintptr_t execution_thread_memory_start;
    size_t execution_thread_memory_length;
 #ifdef __cplusplus
-   eosio::chain::apply_context* ctx;
+   void* ctx;
    std::exception_ptr* eptr;
 #else
    void* ctx;
@@ -35,4 +35,6 @@ struct eos_vm_oc_control_block {
    uintptr_t running_code_base;
    int64_t  first_invalid_memory_address;
    unsigned is_running;
+   int64_t max_linear_memory_pages;
+   void* globals;
 };

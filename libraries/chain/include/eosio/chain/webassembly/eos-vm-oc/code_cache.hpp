@@ -5,7 +5,7 @@
 #include <eosio/chain/webassembly/eos-vm-oc/eos-vm-oc.hpp>
 #include <eosio/chain/webassembly/eos-vm-oc/ipc_helpers.hpp>
 #include <boost/multi_index_container.hpp>
-#include <boost/multi_index/ordered_index.hpp>
+#include <boost/multi_index/hashed_index.hpp>
 #include <boost/multi_index/sequenced_index.hpp>
 #include <boost/multi_index/composite_key.hpp>
 #include <boost/multi_index/key_extractors.hpp>
@@ -38,7 +38,8 @@ struct config;
 
 class code_cache_base {
    public:
-      code_cache_base(const bfs::path data_dir, const eosvmoc::config& eosvmoc_config, const chainbase::database& db);
+      using code_finder = std::function<std::string_view(const eosio::chain::digest_type&, uint8_t)>;
+      code_cache_base(const bfs::path data_dir, const eosvmoc::config& eosvmoc_config, code_finder db);
       ~code_cache_base();
 
       const int& fd() const { return _cache_fd; }
@@ -52,7 +53,7 @@ class code_cache_base {
          code_descriptor,
          indexed_by<
             sequenced<>,
-            ordered_unique<tag<by_hash>,
+            hashed_unique<tag<by_hash>,
                composite_key< code_descriptor,
                   member<code_descriptor, digest_type, &code_descriptor::code_hash>,
                   member<code_descriptor, uint8_t,     &code_descriptor::vm_version>
@@ -62,7 +63,7 @@ class code_cache_base {
       > code_cache_index;
       code_cache_index _cache_index;
 
-      const chainbase::database& _db;
+      code_finder _db;
 
       bfs::path _cache_file_path;
       int _cache_fd;
@@ -88,7 +89,7 @@ class code_cache_base {
 
 class code_cache_async : public code_cache_base {
    public:
-      code_cache_async(const bfs::path data_dir, const eosvmoc::config& eosvmoc_config, const chainbase::database& db);
+      code_cache_async(const bfs::path data_dir, const eosvmoc::config& eosvmoc_config, code_finder db);
       ~code_cache_async();
 
       //If code is in cache: returns pointer & bumps to front of MRU list
