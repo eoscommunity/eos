@@ -8,6 +8,7 @@ namespace eosio { namespace chain {
 
    struct transaction_checktime_timer {
       public:
+         transaction_checktime_timer(platform_timer& timer);
          transaction_checktime_timer() = delete;
          transaction_checktime_timer(const transaction_checktime_timer&) = delete;
          transaction_checktime_timer(transaction_checktime_timer&&) = default;
@@ -25,7 +26,6 @@ namespace eosio { namespace chain {
       private:
          platform_timer& _timer;
 
-         transaction_checktime_timer(platform_timer& timer);
          friend controller_impl;
    };
 
