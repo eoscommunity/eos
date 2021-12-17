@@ -71,11 +71,37 @@ void validate(const bytes& code, const whitelisted_intrinsics_type& intrinsics) 
       const auto& imports = bkend.get_module().imports;
       for(std::uint32_t i = 0; i < imports.size(); ++i) {
          EOS_ASSERT(std::string_view((char*)imports[i].module_str.raw(), imports[i].module_str.size()) == "env" &&
-                    is_intrinsic_whitelisted(intrinsics, std::string((char*)imports[i].field_str.raw(), imports[i].field_str.size())),
+                    is_intrinsic_whitelisted(intrinsics, std::string_view((char*)imports[i].field_str.raw(), imports[i].field_str.size())),
                     wasm_serialization_error, "${module}.${fn} unresolveable",
                     ("module", std::string((char*)imports[i].module_str.raw(), imports[i].module_str.size()))
                           ("fn", std::string((char*)imports[i].field_str.raw(), imports[i].field_str.size())));
       }
+   } catch(vm::exception& e) {
+      EOS_THROW(wasm_serialization_error, e.detail());
+   }
+}
+
+void validate( const bytes& code, const wasm_config& cfg, const whitelisted_intrinsics_type& intrinsics ) {
+   EOS_ASSERT(code.size() <= cfg.max_module_bytes, wasm_serialization_error, "Code too large");
+   wasm_code_ptr code_ptr((uint8_t*)code.data(), code.size());
+   try {
+      eos_vm_null_backend_t<wasm_config> bkend(code_ptr, code.size(), nullptr, cfg);
+      // check import signatures
+      eos_vm_host_functions_t::resolve(bkend.get_module());
+      // check that the imports are all currently enabled
+      const auto& imports = bkend.get_module().imports;
+      for(std::uint32_t i = 0; i < imports.size(); ++i) {
+         EOS_ASSERT(std::string_view((char*)imports[i].module_str.raw(), imports[i].module_str.size()) == "env" &&
+                    is_intrinsic_whitelisted(intrinsics, std::string_view((char*)imports[i].field_str.raw(), imports[i].field_str.size())),
+                    wasm_serialization_error, "${module}.${fn} unresolveable",
+                    ("module", std::string((char*)imports[i].module_str.raw(), imports[i].module_str.size()))
+                          ("fn", std::string((char*)imports[i].field_str.raw(), imports[i].field_str.size())));
+      }
+      // check apply
+      uint32_t apply_idx = bkend.get_module().get_exported_function("apply");
+      EOS_ASSERT(apply_idx < std::numeric_limits<uint32_t>::max(), wasm_serialization_error, "apply not exported");
+      const vm::func_type& apply_type = bkend.get_module().get_function_type(apply_idx);
+      EOS_ASSERT((apply_type == vm::host_function{{vm::i64, vm::i64, vm::i64}, {}}), wasm_serialization_error, "apply has wrong type");
    } catch(vm::exception& e) {
       EOS_THROW(wasm_serialization_error, e.detail());
    }
